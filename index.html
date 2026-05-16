@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UMNXtraAI</title>
+
+<style>
+
+:root{
+--bg:#070709;
+--side:#0c0c10;
+--panel:#111118;
+
+--text:#f5f5f5;
+--muted:#b8b8c2;
+
+--umn-red:#d6001c;
+--umn-glow:rgba(214,0,28,0.35);
+}
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+body{
+height:100vh;
+display:flex;
+overflow:hidden;
+background:var(--bg);
+color:var(--text);
+font-family:Arial;
+}
+
+/* SIDEBAR */
+#sidebar{
+width:240px;
+background:var(--side);
+border-right:1px solid rgba(214,0,28,0.2);
+padding:12px;
+display:flex;
+flex-direction:column;
+gap:10px;
+transition:0.3s ease;
+box-shadow:0 0 20px rgba(214,0,28,0.08);
+}
+
+#sidebar.collapsed{
+width:0;
+padding:0;
+overflow:hidden;
+border:none;
+}
+
+/* MAIN */
+#main{
+flex:1;
+display:flex;
+flex-direction:column;
+height:100vh;
+}
+
+/* CHAT */
+#chat{
+flex:1;
+overflow-y:auto;
+padding:16px;
+max-width:900px;
+margin:auto;
+width:100%;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+/* MESSAGE */
+.msg{
+padding:12px;
+border-radius:12px;
+max-width:80%;
+word-wrap:break-word;
+}
+
+.user{
+align-self:flex-end;
+background:rgba(214,0,28,0.15);
+border:1px solid rgba(214,0,28,0.25);
+}
+
+.ai{
+align-self:flex-start;
+background:rgba(255,255,255,0.04);
+border:1px solid rgba(255,255,255,0.08);
+}
+
+/* IMAGE */
+img{
+width:100%;
+border-radius:12px;
+margin-top:8px;
+box-shadow:0 0 18px rgba(214,0,28,0.25);
+}
+
+/* INPUT BAR */
+#bottom{
+padding:10px;
+background:#0f0f14;
+border-top:1px solid rgba(214,0,28,0.2);
+display:flex;
+gap:10px;
+}
+
+textarea{
+flex:1;
+height:50px;
+border:none;
+border-radius:10px;
+padding:10px;
+background:#12121a;
+color:white;
+outline:none;
+border:1px solid rgba(214,0,28,0.2);
+}
+
+button{
+padding:10px;
+border:none;
+border-radius:10px;
+cursor:pointer;
+background:#1a1a22;
+color:white;
+font-weight:600;
+}
+
+#send{
+background:linear-gradient(135deg,var(--umn-red),#ff2a3d);
+box-shadow:0 0 12px var(--umn-glow);
+}
+
+#img{
+background:#1a1a22;
+}
+
+/* TOGGLE */
+#toggle{
+position:absolute;
+top:10px;
+left:10px;
+background:#1a1a22;
+padding:8px;
+border-radius:8px;
+cursor:pointer;
+border:1px solid rgba(214,0,28,0.3);
+color:var(--umn-red);
+}
+
+.logo{
+color:var(--umn-red);
+font-weight:bold;
+margin-bottom:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+
+<div class="logo">UMNXtraAI</div>
+
+<button onclick="news('general')">News</button>
+<button onclick="news('sports')">Sports</button>
+<button onclick="weather()">Weather</button>
+
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+<div id="toggle" onclick="toggleSidebar()">☰</div>
+
+<div id="chat"></div>
+
+<div id="bottom">
+<textarea id="input"></textarea>
+<button onclick="send()" id="send">SEND</button>
+<button onclick="img()" id="img">IMG</button>
+</div>
+
+</div>
+
+<script>
+
+const chat=document.getElementById("chat");
+const input=document.getElementById("input");
+let messages=[];
+
+/* SIDEBAR */
+function toggleSidebar(){
+document.getElementById("sidebar").classList.toggle("collapsed");
+}
+
+/* ADD MSG */
+function add(t,c){
+let d=document.createElement("div");
+d.className="msg "+c;
+d.innerHTML=t;
+chat.appendChild(d);
+chat.scrollTop=chat.scrollHeight;
+}
+
+/* CHAT */
+async function send(){
+
+let t=input.value;
+if(!t)return;
+
+add(t,"user");
+
+let r=await fetch("/api/chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({messages:[...messages,{role:"user",content:t}]})
+});
+
+let d=await r.json();
+add(d.reply,"ai");
+
+}
+
+/* IMAGE */
+function img(){
+
+let t=input.value;
+
+fetch("/api/image",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({prompt:t})
+})
+.then(r=>r.json())
+.then(d=>{
+add(`<img src="${d.image}">`,"ai");
+});
+
+}
+
+/* NEWS */
+async function news(cat){
+
+add("Loading news...","ai");
+
+let r=await fetch("/api/news?category="+cat);
+let d=await r.json();
+
+let out="";
+d.articles.slice(0,5).forEach(a=>{
+out+=`<b>${a.title}</b><br><br>`;
+});
+
+add(out,"ai");
+
+}
+
+/* WEATHER */
+function weather(){
+
+fetch("https://wttr.in/?format=j1")
+.then(r=>r.json())
+.then(d=>{
+add(`🌡 ${d.current_condition[0].temp_C}°C`,"ai");
+});
+
+}
+
+</script>
+
+</body>
+</html>
